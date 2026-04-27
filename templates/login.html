@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>OllamaGate — Access</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#0a0a0f"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0a0a0f;
+      --surface:  #111118;
+      --border:   #1e1e2e;
+      --accent:   #7c6af7;
+      --accent2:  #4ff0b7;
+      --danger:   #ff4e6a;
+      --text:     #e2e2f0;
+      --muted:    #6b6b8a;
+      --mono:     'Space Mono', monospace;
+      --sans:     'Syne', sans-serif;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Grid background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: .4;
+      pointer-events: none;
+    }
+
+    /* ── Glow orb ── */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(124,106,247,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: min(440px, 92vw);
+      box-shadow: 0 0 80px rgba(124,106,247,.12), 0 24px 64px rgba(0,0,0,.5);
+      animation: fadeUp .5s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      box-shadow: 0 0 24px rgba(124,106,247,.4);
+    }
+
+    .logo-text { font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
+    .logo-text span { color: var(--accent); }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: var(--mono);
+      margin-bottom: 36px;
+      letter-spacing: .04em;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .input-wrap { position: relative; margin-bottom: 20px; }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 48px 14px 16px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      letter-spacing: .06em;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124,106,247,.15);
+    }
+
+    .toggle-vis {
+      position: absolute;
+      right: 14px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none;
+      color: var(--muted); cursor: pointer;
+      font-size: 16px;
+      transition: color .2s;
+    }
+    .toggle-vis:hover { color: var(--text); }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, transform .1s, box-shadow .2s;
+      box-shadow: 0 0 24px rgba(124,106,247,.35);
+      letter-spacing: .02em;
+    }
+
+    .btn:hover  { background: #9481ff; box-shadow: 0 0 32px rgba(124,106,247,.5); }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .error-msg {
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: rgba(255,78,106,.08);
+      border: 1px solid rgba(255,78,106,.25);
+      border-radius: 8px;
+      color: var(--danger);
+      font-family: var(--mono);
+      font-size: 12px;
+      display: none;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .status-dot.active { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+
+    .footer-note {
+      margin-top: 28px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Loading spinner on button */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">🔐</div>
+      <div class="logo-text">Ollama<span>Gate</span></div>
+    </div>
+    <p class="subtitle">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Checking session…</span>
+    </p>
+
+    <label for="tokenInput">Access Token</label>
+    <div class="input-wrap">
+      <input type="password" id="tokenInput" autocomplete="off"
+             placeholder="Enter your given token"
+             maxlength="60" spellcheck="false"/>
+      <button class="toggle-vis" id="toggleVis" title="Show/hide token">👁</button>
+    </div>
+
+    <button class="btn" id="loginBtn">Authenticate</button>
+    <div class="error-msg" id="errorMsg"></div>
+
+    <p class="footer-note">
+      Token-gated · Local AI · Private
+    </p>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById('tokenInput');
+    const loginBtn   = document.getElementById('loginBtn');
+    const errorMsg   = document.getElementById('errorMsg');
+    const statusDot  = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const toggleVis  = document.getElementById('toggleVis');
+
+    // Check server status
+    fetch('/api/status')
+      .then(r => r.json())
+      .then(d => {
+        if (d.token_valid) {
+          const m = Math.floor(d.expires_in / 60);
+          const s = d.expires_in % 60;
+          statusDot.classList.add('active');
+          statusText.textContent = `Session active · expires in ${m}m ${s}s`;
+        } else {
+          statusText.textContent = 'No active session — token expired';
+        }
+      })
+      .catch(() => { statusText.textContent = 'Server unreachable'; });
+
+    // Toggle visibility
+    toggleVis.addEventListener('click', () => {
+      const isPass = tokenInput.type === 'password';
+      tokenInput.type = isPass ? 'text' : 'password';
+      toggleVis.textContent = isPass ? '🙈' : '👁';
+    });
+
+    // Submit
+    async function doLogin() {
+      const token = tokenInput.value.trim();
+      if (!token) return;
+
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<span class="spinner"></span>Authenticating…';
+      errorMsg.style.display = 'none';
+
+      try {
+        const res  = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.ok) {
+          loginBtn.textContent = '✓ Access granted';
+          loginBtn.style.background = 'var(--accent2)';
+          loginBtn.style.color = '#0a0a0f';
+          setTimeout(() => { window.location.href = '/'; }, 600);
+        } else {
+          showError(data.error || 'Wrong token.');
+          tokenInput.value = '';
+          tokenInput.focus();
+        }
+      } catch {
+        showError('Network error. Is the server running?');
+      } finally {
+        if (loginBtn.disabled) {
+          loginBtn.disabled = false;
+          if (!loginBtn.textContent.includes('granted')) {
+            loginBtn.textContent = 'Authenticate';
+          }
+        }
+      }
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.style.display = 'block';
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Authenticate';
+    }
+
+    loginBtn.addEventListener('click', doLogin);
+    tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    tokenInput.focus();
+
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(console.warn);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>OllamaGate — Model Stats</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0a0f;--surface:#111118;--surface2:#16161f;--surface3:#1c1c28;
+      --border:#1e1e2e;--accent:#7c6af7;--accent2:#4ff0b7;--danger:#ff4e6a;
+      --warn:#f7c06a;--text:#e2e2f0;--muted:#6b6b8a;
+      --mono:'Space Mono',monospace;--sans:'Syne',sans-serif;
+    }
+    html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--sans)}
+    body{display:flex;flex-direction:column}
+
+    /* Grid bg */
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.25;pointer-events:none;z-index:0}
+
+    /* ── HEADER ── */
+    header{
+      position:sticky;top:0;z-index:10;
+      background:rgba(17,17,24,.92);backdrop-filter:blur(14px);
+      border-bottom:1px solid var(--border);padding:0 24px;height:58px;
+      display:flex;align-items:center;gap:14px;
+    }
+    .logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+    .logo-text{font-size:16px;font-weight:800;letter-spacing:-.4px}
+    .logo-text span{color:var(--accent)}
+    header h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+    .header-divider{width:1px;height:22px;background:var(--border)}
+    .header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+    /* Data dir info badge */
+    .data-info{
+      display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
+      background:rgba(79,240,183,.06);border:1px solid rgba(79,240,183,.15);
+      border-radius:7px;font-family:var(--mono);font-size:10px;color:var(--accent2);
+      white-space:nowrap;
+    }
+    .data-info .dot{width:6px;height:6px;border-radius:50%;background:var(--accent2);animation:pulse 2s ease infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+    .back-btn{
+      padding:7px 14px;background:transparent;border:1px solid var(--border);
+      border-radius:8px;color:var(--muted);font-family:var(--sans);font-size:13px;
+      font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none;
+      display:inline-flex;align-items:center;gap:6px;
+    }
+    .back-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+    /* Upload button (compact, secondary) */
+    .upload-btn-label{
+      padding:7px 14px;background:transparent;border:1px solid var(--border);
+      border-radius:8px;color:var(--muted);font-family:var(--sans);font-size:13px;
+      font-weight:600;cursor:pointer;transition:all .2s;
+      display:inline-flex;align-items:center;gap:6px;
+    }
+    .upload-btn-label:hover{border-color:var(--accent2);color:var(--accent2)}
+    #uploadInput{display:none}
+    #uploadStatus{font-family:var(--mono);font-size:11px;color:var(--accent2);white-space:nowrap}
+
+    /* ── MAIN CONTENT ── */
+    main{flex:1;padding:28px 24px;position:relative;z-index:1;max-width:1400px;margin:0 auto;width:100%}
+
+    /* ── STAT CARDS ── */
+    .stats-grid{
+      display:grid;
+      grid-template-columns:repeat(6,1fr);
+      gap:12px;margin-bottom:28px;
+    }
+    .stat-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:16px 18px;position:relative;overflow:hidden;
+      transition:border-color .2s;
+    }
+    .stat-card:hover{border-color:rgba(124,106,247,.3)}
+    .stat-card::before{
+      content:'';position:absolute;top:0;left:0;right:0;height:2px;
+      background:linear-gradient(90deg,var(--card-color,var(--accent)),transparent);
+    }
+    .stat-label{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
+    .stat-value{font-size:22px;font-weight:800;letter-spacing:-.5px;line-height:1;margin-bottom:4px}
+    .stat-sub{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+    /* ── EMPTY / NO DATA STATE ── */
+    .no-data{text-align:center;padding:80px 20px;color:var(--muted)}
+    .no-data .nd-icon{font-size:52px;opacity:.15;margin-bottom:18px}
+    .no-data h3{font-size:20px;font-weight:800;color:var(--text);margin-bottom:10px}
+    .no-data p{font-size:13px;line-height:1.7;max-width:400px;margin:0 auto 18px}
+    .no-data code{font-family:var(--mono);font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 8px;color:var(--accent2)}
+
+    /* ── CONTROLS BAR ── */
+    .controls-row{
+      display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:center;
+      background:var(--surface);border:1px solid var(--border);border-radius:10px;
+      padding:10px 14px;
+    }
+    .ctrl-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .ctrl-label{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
+    .ctrl-sep{width:1px;height:20px;background:var(--border)}
+    .chip{padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--mono);font-size:10px;cursor:pointer;transition:all .2s;white-space:nowrap}
+    .chip:hover,.chip.active{border-color:var(--accent);color:var(--accent);background:rgba(124,106,247,.08)}
+    .chip.a2:hover,.chip.a2.active{border-color:var(--accent2);color:var(--accent2);background:rgba(79,240,183,.08)}
+    .search-input{
+      background:var(--bg);border:1px solid var(--border);border-radius:8px;
+      padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:12px;
+      outline:none;transition:border-color .2s;margin-left:auto;width:180px;
+    }
+    .search-input:focus{border-color:var(--accent)}
+
+    /* ── TABLE ── */
+    .table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);background:var(--surface)}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    /* ↓↓ SELF-EDIT: change "top" to adjust how far from the page-top the table header sticks.
+          Lower number = thead moves UP (closer to the page header). Default was 58px.
+          If the page header ever changes height, match this value to the new header height. */
+    thead{position:sticky;top:0px;z-index:5}
+    tr:first-child td{padding-top:14px}
+    th{
+      background:var(--surface2);padding:11px 14px;text-align:left;
+      font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;
+      cursor:pointer;user-select:none;transition:color .2s;
+    }
+    th:hover,th.active{color:var(--accent)}
+    th .sort-arrow{margin-left:4px;opacity:.35;font-size:10px}
+    th.active .sort-arrow{opacity:1;color:var(--accent)}
+    td{padding:10px 14px;border-bottom:1px solid rgba(30,30,46,.6);vertical-align:middle;line-height:1.5}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(124,106,247,.03)}
+
+    /* Tags */
+    .tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-family:var(--mono);font-size:9px;white-space:nowrap}
+    .tag.yes{background:rgba(79,240,183,.1);border:1px solid rgba(79,240,183,.25);color:var(--accent2)}
+    .tag.no{background:rgba(255,78,106,.06);border:1px solid rgba(255,78,106,.15);color:var(--danger)}
+    .tag.half{background:rgba(247,192,106,.08);border:1px solid rgba(247,192,106,.2);color:var(--warn)}
+    .tag.cloud{background:rgba(247,192,106,.08);border:1px solid rgba(247,192,106,.2);color:var(--warn)}
+    .tag.local{background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.2);color:var(--accent)}
+
+    /* Speed bar */
+    .speed-wrap{display:flex;align-items:center;gap:8px}
+    .speed-bar{height:5px;border-radius:3px;background:linear-gradient(90deg,var(--accent2),var(--accent));min-width:4px;transition:width .4s}
+    .speed-val{font-family:var(--mono);font-size:11px;white-space:nowrap;color:var(--text)}
+
+    /* Model name cell */
+    .model-name{font-weight:700;font-family:var(--mono);font-size:12px;color:var(--text);margin-bottom:2px}
+    .model-meta{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+    /* Expandable */
+    .expand-btn{
+      background:none;border:1px solid var(--border);border-radius:5px;
+      color:var(--muted);font-family:var(--mono);font-size:10px;padding:3px 8px;
+      cursor:pointer;transition:all .2s;white-space:nowrap;
+    }
+    .expand-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+    .answer-preview{font-size:11px;color:var(--muted);font-family:var(--mono);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
+
+    /* Modal */
+    .answer-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:center;justify-content:center}
+    .answer-modal-overlay.show{display:flex}
+    .answer-modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:min(720px,94vw);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.7)}
+    .modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+    .modal-model-badge{padding:3px 10px;background:rgba(124,106,247,.1);border:1px solid rgba(124,106,247,.2);border-radius:20px;font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap}
+    .modal-title{font-size:14px;font-weight:700;font-family:var(--mono);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;transition:color .2s}
+    .modal-close:hover{color:var(--text)}
+    .modal-tabs{display:flex;gap:2px;padding:10px 20px 0;border-bottom:1px solid var(--border);flex-shrink:0}
+    .modal-tab{padding:7px 16px;border-radius:7px 7px 0 0;border:1px solid transparent;border-bottom:none;font-family:var(--mono);font-size:11px;cursor:pointer;color:var(--muted);background:transparent;transition:all .2s}
+    .modal-tab.active{background:var(--surface2);border-color:var(--border);color:var(--text)}
+    .modal-body{flex:1;overflow-y:auto;padding:18px 20px;font-size:13px;line-height:1.75;font-family:var(--mono);white-space:pre-wrap;word-break:break-word;color:var(--muted)}
+    .prompt-badge{display:inline-block;padding:5px 10px;background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.15);border-radius:6px;font-family:var(--mono);font-size:10px;color:var(--accent);margin-bottom:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    /* Source file badge */
+    .source-badge{font-family:var(--mono);font-size:10px;color:var(--muted);padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;white-space:nowrap}
+
+    /* Loading skeleton */
+    .skeleton-row td{padding:14px}
+    .skeleton{height:12px;border-radius:4px;background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* ── CHART SECTION ── */
+    .chart-section{
+      display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;
+    }
+    .chart-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:18px 20px;
+    }
+    .chart-card-title{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .chart-card-title span{color:var(--accent)}
+    .chart-wrap{position:relative;width:100%;height:220px}
+    /* Speed bar chart */
+    .bar-chart{display:flex;flex-direction:column;gap:7px;height:100%;overflow-y:auto;padding-right:4px}
+    .bar-row{display:flex;align-items:center;gap:10px;flex-shrink:0}
+    .bar-label{font-family:var(--mono);font-size:10px;color:var(--muted);width:130px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+    .bar-track{flex:1;height:14px;background:var(--surface2);border-radius:7px;overflow:hidden;position:relative}
+    .bar-fill{height:100%;border-radius:7px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .6s cubic-bezier(.4,0,.2,1)}
+    .bar-num{font-family:var(--mono);font-size:10px;color:var(--text);width:54px;flex-shrink:0}
+    /* Donut chart */
+    .donut-wrap{display:flex;align-items:center;justify-content:center;gap:24px;height:100%}
+    .donut-legend{display:flex;flex-direction:column;gap:9px}
+    .legend-item{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+    .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+    .legend-val{margin-left:auto;color:var(--text);font-weight:700;min-width:20px;text-align:right}
+    /* Response time dots */
+    .time-chart{display:flex;align-items:flex-end;gap:4px;height:100%;padding-bottom:20px;position:relative}
+    .time-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-width:0}
+    .time-bar-fill{width:100%;border-radius:4px 4px 0 0;background:var(--accent2);opacity:.75;transition:opacity .2s;min-height:2px}
+    .time-bar-fill:hover{opacity:1}
+    .time-bar-label{font-family:var(--mono);font-size:8px;color:var(--muted);transform:rotate(-45deg);transform-origin:top center;white-space:nowrap;width:40px;text-align:left;overflow:hidden;text-overflow:ellipsis}
+    @media(max-width:900px){.chart-section{grid-template-columns:1fr}}
+    @media(max-width:600px){.chart-section{display:none}}
+
+    /* ── STAT CARDS UPGRADE ── */
+    .stat-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:16px 18px;position:relative;overflow:hidden;
+      transition:border-color .2s,transform .2s;cursor:default;
+    }
+    .stat-card:hover{border-color:rgba(124,106,247,.35);transform:translateY(-2px)}
+    .stat-card::before{
+      content:'';position:absolute;top:0;left:0;right:0;height:2px;
+      background:linear-gradient(90deg,var(--card-color,var(--accent)),transparent);
+    }
+    .stat-card-icon{position:absolute;right:14px;top:14px;font-size:22px;opacity:.12}
+    .stat-trend{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:9px;margin-top:4px}
+    .stat-trend.up{color:var(--accent2)}
+    .stat-trend.neutral{color:var(--muted)}
+
+    /* ── MODAL UPGRADE ── */
+    .stat-grid-modal{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+    .stat-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+    .stat-item-label{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+    .stat-item-val{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--text)}
+    .answer-text{white-space:pre-wrap;word-break:break-word;color:var(--text);line-height:1.75;font-size:13px;font-family:var(--sans)}
+    @media(max-width:900px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:600px){main{padding:14px 12px}.stats-grid{grid-template-columns:repeat(2,1fr)}header h1{display:none}.data-info{display:none}}
+    ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">📊</div>
+  <div class="logo-text">Ollama<span>Gate</span></div>
+  <div class="header-divider"></div>
+  <h1>Model Benchmarks</h1>
+  <div class="header-right">
+    <div class="data-info" id="dataInfo">
+      <span class="dot"></span>
+      <span>Auto-loading from <code style="font-family:var(--mono);font-size:9px;color:var(--accent2)">static/data/</code></span>
+    </div>
+    <label class="upload-btn-label" for="uploadInput" title="Upload additional benchmark file">📂 Upload</label>
+    <input type="file" id="uploadInput" accept=".txt"/>
+    <span id="uploadStatus"></span>
+    <a href="/" class="back-btn">← Chat</a>
+  </div>
+</header>
+
+<main>
+  <!-- Stats cards -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card" style="--card-color:var(--text)"><div class="skeleton" style="width:60%;height:10px;margin-bottom:10px"></div><div class="skeleton" style="width:40%;height:22px"></div></div>
+    <div class="stat-card" style="--card-color:var(--accent2)"><div class="skeleton" style="width:60%;height:10px;margin-bottom:10px"></div><div class="skeleton" style="width:50%;height:22px"></div></div>
+    <div class="stat-card" style="--card-color:var(--accent)"><div class="skeleton" style="width:70%;height:10px;margin-bottom:10px"></div><div class="skeleton" style="width:45%;height:22px"></div></div>
+    <div class="stat-card" style="--card-color:var(--accent2)"><div class="skeleton" style="width:55%;height:10px;margin-bottom:10px"></div><div class="skeleton" style="width:30%;height:22px"></div></div>
+    <div class="stat-card" style="--card-color:var(--accent)"><div class="skeleton" style="width:65%;height:10px;margin-bottom:10px"></div><div class="skeleton" style="width:35%;height:22px"></div></div>
+    <div class="stat-card" style="--card-color:var(--warn)"><div class="skeleton" style="width:55%;height:10px;margin-bottom:10px"></div><div class="skeleton" style="width:30%;height:22px"></div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="chart-section" id="chartSection" style="display:none">
+    <div class="chart-card">
+      <div class="chart-card-title">⚡ Speed Ranking <span>tok/s</span></div>
+      <div class="chart-wrap"><div class="bar-chart" id="speedChart"></div></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">⏱ Response Time <span>seconds</span></div>
+      <div class="chart-wrap"><div class="time-chart" id="timeChart"></div></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-row">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Filter</span>
+      <div id="filterGroup" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="chip active" data-filter="all">All</button>
+        <button class="chip" data-filter="local">Local</button>
+        <button class="chip a2" data-filter="cloud">Cloud</button>
+        <button class="chip a2" data-filter="vision">Vision</button>
+        <button class="chip" data-filter="thinking">Thinking</button>
+        <button class="chip" data-filter="uncensored">Uncensored</button>
+      </div>
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Sort</span>
+      <div id="sortGroup" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="chip active" data-sort="eval_rate">Speed</button>
+        <button class="chip" data-sort="model">Name</button>
+        <button class="chip" data-sort="total_sec">Time</button>
+        <button class="chip" data-sort="parameters">Params</button>
+      </div>
+    </div>
+    <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search models…"/>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-col="model">Model <span class="sort-arrow">↕</span></th>
+          <th data-col="parameters">Params <span class="sort-arrow">↕</span></th>
+          <th data-col="quantization">Quant <span class="sort-arrow">↕</span></th>
+          <th>Cloud</th>
+          <th>Vision</th>
+          <th>Thinking</th>
+          <th>Uncensored</th>
+          <th data-col="eval_rate">Speed (tok/s) <span class="sort-arrow">↕</span></th>
+          <th data-col="total_sec">Total ⏱ <span class="sort-arrow">↕</span></th>
+          <th>Answer</th>
+          <th>Source</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <!-- Skeleton rows -->
+        <tr class="skeleton-row"><td><div class="skeleton" style="width:140px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:40px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:80px"></div></td><td><div class="skeleton" style="width:40px"></div></td><td><div class="skeleton" style="width:100px"></div></td><td><div class="skeleton" style="width:80px"></div></td></tr>
+        <tr class="skeleton-row"><td><div class="skeleton" style="width:120px"></div></td><td><div class="skeleton" style="width:45px"></div></td><td><div class="skeleton" style="width:38px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:80px"></div></td><td><div class="skeleton" style="width:40px"></div></td><td><div class="skeleton" style="width:100px"></div></td><td><div class="skeleton" style="width:80px"></div></td></tr>
+        <tr class="skeleton-row"><td><div class="skeleton" style="width:160px"></div></td><td><div class="skeleton" style="width:55px"></div></td><td><div class="skeleton" style="width:42px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:50px"></div></td><td><div class="skeleton" style="width:80px"></div></td><td><div class="skeleton" style="width:40px"></div></td><td><div class="skeleton" style="width:100px"></div></td><td><div class="skeleton" style="width:80px"></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Answer modal -->
+<div class="answer-modal-overlay" id="answerModal">
+  <div class="answer-modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">—</span>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-tab="answer">Answer</button>
+      <button class="modal-tab" data-tab="think">Reasoning</button>
+      <button class="modal-tab" data-tab="stats">Stats</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+let ALL_DATA = [];
+let activeFilter = "all", activeSort = "eval_rate", sortAsc = false;
+let currentEntry = null, activeTab = "answer";
+
+// ── Load data from backend (auto-loads static/data/*.txt)
+async function loadBenchmarks(){
+  try{
+    const d = await (await fetch("/api/benchmarks")).json();
+    ALL_DATA = d.benchmarks || [];
+    buildStats();
+    render();
+    // Update header info
+    const info = document.getElementById("dataInfo");
+    if(ALL_DATA.length){
+      info.innerHTML = `<span class="dot" style="background:var(--accent2)"></span><span style="color:var(--accent2)">${ALL_DATA.length} entries loaded</span>`;
+    } else {
+      info.innerHTML = `<span class="dot" style="background:var(--warn)"></span><span style="color:var(--warn)">No benchmarks found — add .txt files to <code style="font-size:9px;color:var(--warn)">static/data/</code></span>`;
+    }
+  } catch(e) {
+    document.getElementById("tableBody").innerHTML=
+      `<tr><td colspan="11"><div class="no-data"><div class="nd-icon">⚠️</div><h3>Load Failed</h3><p>${esc(e.message)}</p></div></td></tr>`;
+  }
+}
+
+// ── Stats cards (upgraded)
+function buildStats(){
+  const grid = document.getElementById("statsGrid");
+  if(!ALL_DATA.length){
+    grid.innerHTML = `<div class="stat-card" style="grid-column:1/-1;--card-color:var(--muted)"><div class="no-data" style="padding:30px"><div class="nd-icon" style="font-size:36px">📂</div><h3 style="margin-top:10px">No benchmark data</h3><p>Drop <strong>Testing.txt</strong> files into <code>static/data/</code> and restart, or use the Upload button above.</p></div></div>`;
+    return;
+  }
+  const total     = ALL_DATA.length;
+  const withRate  = ALL_DATA.filter(d=>d.eval_rate>0);
+  const withTime  = ALL_DATA.filter(d=>d.total_sec>0);
+  const avgRate   = withRate.length ? withRate.reduce((s,d)=>s+d.eval_rate,0)/withRate.length : 0;
+  const avgTime   = withTime.length ? withTime.reduce((s,d)=>s+d.total_sec,0)/withTime.length : 0;
+  const fastest   = [...ALL_DATA].sort((a,b)=>b.eval_rate-a.eval_rate)[0];
+  const slowest   = [...withTime].sort((a,b)=>b.total_sec-a.total_sec)[0];
+  const visionCnt = ALL_DATA.filter(d=>d.vision).length;
+  const thinkCnt  = ALL_DATA.filter(d=>d.thinking).length;
+  const cloudCnt  = ALL_DATA.filter(d=>d.cloud).length;
+  const localCnt  = total - cloudCnt;
+  const uncenCnt  = ALL_DATA.filter(d=>d.uncensored&&d.uncensored.toLowerCase()==="yes").length;
+  const families  = new Set(ALL_DATA.map(d=>d.family||"unknown")).size;
+
+  const cards = [
+    {label:"Total Entries",     value:total,                              sub:`${families} model families`,          icon:"🗂",  color:"var(--text)"},
+    {label:"Avg Speed",         value:avgRate.toFixed(1)+" t/s",          sub:"tokens per second",                   icon:"⚡", color:"var(--accent2)"},
+    {label:"Fastest Model",     value:fastest?.model?.split(":")[0]||"—", sub:`${fastest?.eval_rate?.toFixed(1)||0} tok/s`, icon:"🏆", color:"var(--accent)"},
+    {label:"Avg Response Time", value:avgTime.toFixed(1)+"s",             sub:`slowest: ${slowest?.total_sec?.toFixed(1)||0}s`, icon:"⏱", color:"var(--warn)"},
+    {label:"Capabilities",      value:`${visionCnt}👁 ${thinkCnt}🧠`,    sub:`${uncenCnt} uncensored`,              icon:"🔭", color:"var(--accent)"},
+    {label:"Local vs Cloud",    value:`${localCnt} / ${cloudCnt}`,        sub:"local — cloud",                       icon:"☁",  color:"var(--accent2)"},
+  ];
+  grid.innerHTML = cards.map(c=>`
+    <div class="stat-card" style="--card-color:${c.color}">
+      <div class="stat-card-icon">${c.icon}</div>
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-value" style="color:${c.color}">${c.value}</div>
+      <div class="stat-sub">${c.sub}</div>
+    </div>`).join("");
+
+  buildCharts();
+}
+
+// ── Charts
+function buildCharts(){
+  const sec = document.getElementById("chartSection");
+  if(!ALL_DATA.length){ sec.style.display="none"; return; }
+  sec.style.display="grid";
+
+  // Speed bar chart — top 10 by eval_rate
+  const top = [...ALL_DATA].filter(d=>d.eval_rate>0).sort((a,b)=>b.eval_rate-a.eval_rate).slice(0,10);
+  const maxR = top[0]?.eval_rate||1;
+  document.getElementById("speedChart").innerHTML = top.map(d=>`
+    <div class="bar-row">
+      <div class="bar-label" title="${esc(d.model)}">${esc(d.model.split(":")[0])}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round((d.eval_rate/maxR)*100)}%"></div></div>
+      <div class="bar-num">${d.eval_rate.toFixed(1)} t/s</div>
+    </div>`).join("");
+
+  // Time chart — all models with response time, sorted by name
+  const timed = [...ALL_DATA].filter(d=>d.total_sec>0).sort((a,b)=>b.total_sec-a.total_sec).slice(0,16);
+  const maxT = Math.max(...timed.map(d=>d.total_sec),1);
+  const pct = d => Math.max(Math.round((d.total_sec/maxT)*100), 4);
+  document.getElementById("timeChart").innerHTML = timed.map(d=>`
+    <div class="time-bar-col" title="${esc(d.model)}: ${d.total_sec.toFixed(1)}s">
+      <div class="time-bar-fill" style="height:${pct(d)}%"></div>
+      <div class="time-bar-label">${esc(d.model.split(":")[0].substring(0,10))}</div>
+    </div>`).join("");
+}
+
+// ── Render table
+function render(){
+  const search = document.getElementById("searchInput").value.toLowerCase();
+  let data = [...ALL_DATA];
+
+  if(activeFilter==="local")      data=data.filter(d=>!d.cloud);
+  if(activeFilter==="cloud")      data=data.filter(d=>d.cloud);
+  if(activeFilter==="vision")     data=data.filter(d=>d.vision);
+  if(activeFilter==="thinking")   data=data.filter(d=>d.thinking);
+  if(activeFilter==="uncensored") data=data.filter(d=>d.uncensored&&d.uncensored.toLowerCase()!=="no");
+
+  if(search) data=data.filter(d=>
+    (d.model||"").toLowerCase().includes(search)||
+    (d.parameters||"").toLowerCase().includes(search)||
+    (d.source_file||"").toLowerCase().includes(search)
+  );
+
+  data.sort((a,b)=>{
+    let av=a[activeSort]??0, bv=b[activeSort]??0;
+    if(typeof av==="string"){ av=av.toLowerCase(); bv=(b[activeSort]||"").toLowerCase(); }
+    if(av<bv) return sortAsc?-1:1;
+    if(av>bv) return sortAsc?1:-1;
+    return 0;
+  });
+
+  const maxRate = Math.max(...data.map(d=>d.eval_rate||0), 1);
+  const tbody = document.getElementById("tableBody");
+
+  if(!data.length){
+    tbody.innerHTML=`<tr><td colspan="11">
+      <div class="no-data">
+        <div class="nd-icon">🔍</div>
+        <h3>No results</h3>
+        <p>Try adjusting filters or adding benchmark files to <code>static/data/</code></p>
+      </div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML=data.map((d,i)=>{
+    const barW=Math.max(Math.round((d.eval_rate/maxRate)*100),4);
+    return `<tr>
+      <td>
+        <div class="model-name">${esc(d.model)}</div>
+        <div class="model-meta">${esc(d.family||"")}</div>
+      </td>
+      <td><span style="font-family:var(--mono);font-size:12px;color:var(--text)">${esc(d.parameters||"?")}</span></td>
+      <td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${esc(d.quantization||"?")}</span></td>
+      <td>${tagCloud(d.cloud)}</td>
+      <td>${tagBool(d.vision)}</td>
+      <td>${tagBool(d.thinking)}</td>
+      <td>${tagUncensored(d.uncensored)}</td>
+      <td>
+        <div class="speed-wrap">
+          <div class="speed-bar" style="width:${barW}px"></div>
+          <span class="speed-val">${d.eval_rate?d.eval_rate.toFixed(1)+" t/s":"—"}</span>
+        </div>
+      </td>
+      <td><span style="font-family:var(--mono);font-size:12px;color:var(--text)">${d.total_sec?d.total_sec.toFixed(1)+"s":"—"}</span></td>
+      <td>
+        <div class="answer-preview">${esc((d.answer||"").substring(0,55))}${d.answer&&d.answer.length>55?"…":""}</div>
+        <button class="expand-btn" onclick="openModal(${i})">View →</button>
+      </td>
+      <td><span class="source-badge">${esc(d.source_file||"—")}</span></td>
+    </tr>`;
+  }).join("");
+
+  window._filteredData = data;
+}
+
+function tagCloud(val){
+  return val
+    ? `<span class="tag cloud">☁ Cloud</span>`
+    : `<span class="tag local">🏠 Local</span>`;
+}
+function tagBool(val){
+  return val
+    ? `<span class="tag yes">✓ Yes</span>`
+    : `<span class="tag no">✗ No</span>`;
+}
+function tagUncensored(val){
+  if(!val) return '<span class="tag no">No</span>';
+  const v=val.toLowerCase();
+  if(v==="yes"||v==="true") return '<span class="tag yes">Yes</span>';
+  if(v==="no") return '<span class="tag no">No</span>';
+  return `<span class="tag half">${esc(val)}</span>`;
+}
+
+// ── Modal
+function openModal(idx){
+  const d=(window._filteredData||ALL_DATA)[idx];
+  if(!d) return;
+  currentEntry=d;
+  document.getElementById("modalTitle").textContent=d.model;
+  document.getElementById("answerModal").classList.add("show");
+  showTab("answer");
+}
+function showTab(tab){
+  activeTab=tab;
+  document.querySelectorAll(".modal-tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===tab));
+  const body=document.getElementById("modalBody");
+  if(tab==="answer"){
+    body.innerHTML=`<div class="prompt-badge">Prompt: ${esc(currentEntry.prompt||"(not recorded)")}</div><div class="answer-text">${esc(currentEntry.answer||"(no answer)")}</div>`;
+  } else if(tab==="think"){
+    body.innerHTML=`<div class="answer-text">${esc(currentEntry.think_block||"(no thinking block recorded)")}</div>`;
+  } else {
+    const s=currentEntry.stats||{};
+    const extras=[
+      {k:"Model",         v:currentEntry.model||"—"},
+      {k:"Parameters",    v:currentEntry.parameters||"—"},
+      {k:"Quantization",  v:currentEntry.quantization||"—"},
+      {k:"Speed",         v:currentEntry.eval_rate?currentEntry.eval_rate.toFixed(2)+" tok/s":"—"},
+      {k:"Total Time",    v:currentEntry.total_sec?currentEntry.total_sec.toFixed(2)+"s":"—"},
+      {k:"Family",        v:currentEntry.family||"—"},
+      {k:"Vision",        v:currentEntry.vision?"Yes":"No"},
+      {k:"Thinking",      v:currentEntry.thinking?"Yes":"No"},
+      {k:"Uncensored",    v:currentEntry.uncensored||"—"},
+      {k:"Cloud",         v:currentEntry.cloud?"Yes":"No"},
+      ...Object.entries(s).map(([k,v])=>({k,v}))
+    ];
+    body.innerHTML=`<div class="stat-grid-modal">${extras.map(({k,v})=>`
+      <div class="stat-item">
+        <div class="stat-item-label">${esc(k)}</div>
+        <div class="stat-item-val">${esc(String(v))}</div>
+      </div>`).join("")}</div>`;
+  }
+}
+document.querySelectorAll(".modal-tab").forEach(t=>t.addEventListener("click",()=>showTab(t.dataset.tab)));
+document.getElementById("modalClose").addEventListener("click",()=>document.getElementById("answerModal").classList.remove("show"));
+document.getElementById("answerModal").addEventListener("click",e=>{if(e.target===document.getElementById("answerModal"))document.getElementById("answerModal").classList.remove("show");});
+
+// ── Sort headers
+document.querySelectorAll("th[data-col]").forEach(th=>{
+  th.addEventListener("click",()=>{
+    if(activeSort===th.dataset.col){ sortAsc=!sortAsc; }
+    else{ activeSort=th.dataset.col; sortAsc=false; }
+    document.querySelectorAll("th[data-col]").forEach(t=>t.classList.remove("active"));
+    th.classList.add("active");
+    render();
+  });
+});
+
+// ── Filters
+document.getElementById("filterGroup").addEventListener("click",e=>{
+  const chip=e.target.closest("[data-filter]"); if(!chip) return;
+  activeFilter=chip.dataset.filter;
+  document.querySelectorAll("#filterGroup .chip").forEach(c=>c.classList.toggle("active",c===chip));
+  render();
+});
+document.getElementById("sortGroup").addEventListener("click",e=>{
+  const chip=e.target.closest("[data-sort]"); if(!chip) return;
+  activeSort=chip.dataset.sort; sortAsc=false;
+  document.querySelectorAll("#sortGroup .chip").forEach(c=>c.classList.toggle("active",c===chip));
+  render();
+});
+document.getElementById("searchInput").addEventListener("input",render);
+
+// ── Upload (still supported as secondary action)
+document.getElementById("uploadInput").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const status=document.getElementById("uploadStatus");
+  status.textContent="Uploading…";
+  const fd=new FormData(); fd.append("file",f);
+  try{
+    const r=await fetch("/api/benchmarks/upload",{method:"POST",body:fd});
+    const d=await r.json();
+    if(d.ok){
+      status.textContent=`✓ ${d.entries} entries from ${d.filename}`;
+      await loadBenchmarks();
+    } else { status.textContent=`✗ ${d.error}`; }
+  } catch(err){ status.textContent=`✗ ${err.message}`; }
+  e.target.value="";
+  setTimeout(()=>status.textContent="",4000);
+});
+
+function esc(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// Auto-load on page open
+loadBenchmarks();
+</script>
+</body>
+</html>

@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>OllamaGate — Image Generation</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#0a0a0f"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0a0f;--surface:#111118;--surface2:#16161f;--surface3:#1c1c28;
+      --border:#1e1e2e;--accent:#7c6af7;--accent2:#4ff0b7;--danger:#ff4e6a;
+      --text:#e2e2f0;--muted:#6b6b8a;
+      --mono:'Space Mono',monospace;--sans:'Syne',sans-serif;
+      --sidebar-w:300px;--header-h:54px;--gallery-w:330px;--mobile-nav-h:62px;
+    }
+    html,body{height:100%;overflow:hidden}
+    body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex;flex-direction:column}
+
+    /* ── TOPBAR ── */
+    #topbar{
+      height:var(--header-h);background:var(--surface);border-bottom:1px solid var(--border);
+      display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:20;
+    }
+    .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:grid;place-items:center;font-size:15px;flex-shrink:0}
+    .logo-text{font-size:15px;font-weight:800;letter-spacing:-.4px;white-space:nowrap}
+    .logo-text span{color:var(--accent)}
+    .nav-tabs{display:flex;gap:4px;margin-left:6px}
+    .nav-tab{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap}
+    .nav-tab:hover{border-color:var(--accent);color:var(--accent)}
+    .nav-tab.active{background:rgba(124,106,247,.15);border-color:var(--accent);color:var(--text)}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+    .timer-sm{padding:4px 10px;background:rgba(79,240,183,.06);border:1px solid rgba(79,240,183,.15);border-radius:6px;font-family:var(--mono);font-size:10px;color:var(--accent2);white-space:nowrap}
+    .gal-toggle-btn{padding:6px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+    .gal-toggle-btn:hover,.gal-toggle-btn.on{border-color:var(--accent2);color:var(--accent2)}
+    .gal-toggle-btn.on{background:rgba(79,240,183,.08)}
+
+    /* ── WORKSPACE ── */
+    #workspace{flex:1;display:flex;min-height:0;overflow:hidden;position:relative}
+
+    /* ── CONTROLS (left sidebar) ── */
+    #controls{
+      width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);
+      display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;padding:16px 14px;gap:14px;
+    }
+    .ctrl-section{display:flex;flex-direction:column;gap:8px}
+    .ctrl-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .ctrl-select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:11px;padding:9px 10px;outline:none;cursor:pointer}
+    .ctrl-select:focus{border-color:var(--accent)}
+    .ctrl-textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--sans);font-size:13px;padding:10px 12px;outline:none;resize:vertical;min-height:80px;line-height:1.5}
+    .ctrl-textarea:focus{border-color:var(--accent)}
+    .ctrl-textarea.neg{min-height:60px;color:var(--muted);font-size:12px}
+    .res-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .res-btn{padding:9px 6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .2s;text-align:center;line-height:1.4}
+    .res-btn:hover{border-color:var(--accent);color:var(--text)}
+    .res-btn.selected{background:rgba(124,106,247,.15);border-color:var(--accent);color:var(--text)}
+    .res-btn .res-aspect{font-size:8px;opacity:.6;margin-top:1px}
+    .ctrl-row{display:flex;gap:8px}
+    .ctrl-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:11px;padding:9px 10px;outline:none;width:100%}
+    .ctrl-input:focus{border-color:var(--accent)}
+    .ctrl-input-label{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:3px;text-align:center}
+    #genBtn{width:100%;padding:14px;background:linear-gradient(135deg,var(--accent),#5d4fe0);border:none;border-radius:10px;color:#fff;font-family:var(--sans);font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.02em;margin-top:4px}
+    #genBtn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 24px rgba(124,106,247,.35)}
+    #genBtn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+    /* ── OUTPUT ── */
+    #output{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow-y:auto;gap:16px;min-width:0}
+    #emptyState{display:flex;flex-direction:column;align-items:center;gap:14px;opacity:.35;text-align:center;pointer-events:none}
+    #emptyState .empty-icon{font-size:52px}
+    #emptyState p{font-size:13px;color:var(--muted)}
+    #progressWrap{display:none;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:500px}
+    .progress-label{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center}
+    .progress-spinner{width:48px;height:48px;border:3px solid rgba(124,106,247,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .progress-model-badge{padding:5px 12px;background:rgba(124,106,247,.1);border:1px solid rgba(124,106,247,.2);border-radius:20px;font-family:var(--mono);font-size:10px;color:var(--accent)}
+    #stepBarWrap{width:100%;max-width:380px;display:none;flex-direction:column;gap:6px}
+    #stepBarTrack{height:6px;background:var(--surface3);border-radius:4px;overflow:hidden}
+    #stepBarFill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;transition:width .3s ease}
+    #stepBarLabel{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center}
+    #resultCard{display:none;flex-direction:column;align-items:center;gap:14px;max-width:900px;width:100%}
+    #resultImg{max-width:100%;max-height:calc(100vh - 220px);border-radius:12px;border:1px solid var(--border);box-shadow:0 8px 40px rgba(0,0,0,.5);display:block;cursor:zoom-in;transition:transform .2s}
+    #resultImg:hover{transform:scale(1.01)}
+    .result-meta{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+    .result-badge{padding:5px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+    .result-badge.ok{border-color:rgba(79,240,183,.25);color:var(--accent2)}
+    .result-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .action-btn{padding:10px 18px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+    .action-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .action-btn.dl:hover{border-color:var(--accent2);color:var(--accent2)}
+
+    /* ── GALLERY PANEL (right sidebar, desktop) ── */
+    #galleryPanel{
+      width:var(--gallery-w);background:var(--surface);border-left:1px solid var(--border);
+      display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;
+      transition:width .3s ease,opacity .25s ease;
+    }
+    #galleryPanel.gal-hidden{width:0;opacity:0;pointer-events:none}
+
+    /* Gallery panel header */
+    .gal-hdr{padding:13px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+    .gal-hdr-title{font-size:13px;font-weight:700;flex:1}
+    .gal-count-badge{font-family:var(--mono);font-size:10px;color:var(--muted);padding:2px 8px;background:var(--surface3);border-radius:10px}
+    .gal-hdr-btns{display:flex;gap:5px}
+    .gal-icon-btn{width:30px;height:30px;background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--muted);cursor:pointer;font-size:13px;display:grid;place-items:center;transition:all .2s;flex-shrink:0}
+    .gal-icon-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .gal-icon-btn.on{background:rgba(124,106,247,.12);border-color:var(--accent);color:var(--accent)}
+
+    /* Bulk select bar */
+    #galSelBar{
+      padding:9px 12px;border-bottom:1px solid var(--border);display:none;
+      align-items:center;gap:8px;background:rgba(124,106,247,.06);flex-shrink:0;flex-wrap:wrap;
+    }
+    #galSelBar.visible{display:flex}
+    #galSelCount{font-family:var(--mono);font-size:10px;color:var(--accent);flex:1;min-width:80px}
+    .gal-btn-sm{padding:5px 10px;border-radius:6px;border:1px solid;cursor:pointer;font-family:var(--mono);font-size:9px;font-weight:700;transition:all .2s;white-space:nowrap}
+    .gal-btn-selall{border-color:var(--border);background:transparent;color:var(--muted)}
+    .gal-btn-selall:hover{border-color:var(--accent);color:var(--accent)}
+    .gal-btn-delsel{border-color:rgba(255,78,106,.4);background:rgba(255,78,106,.06);color:var(--danger)}
+    .gal-btn-delsel:hover:not(:disabled){background:rgba(255,78,106,.18)}
+    .gal-btn-delsel:disabled{opacity:.35;cursor:not-allowed}
+    .gal-btn-cancel{border-color:var(--border);background:transparent;color:var(--muted)}
+    .gal-btn-cancel:hover{border-color:var(--danger);color:var(--danger)}
+
+    /* Gallery grid */
+    #galleryGrid{
+      flex:1;overflow-y:auto;padding:10px;
+      display:grid;grid-template-columns:repeat(2,1fr);gap:8px;align-content:start;
+    }
+    .gal-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:12px;opacity:.35;padding:50px 0;text-align:center}
+    .gal-empty-icon{font-size:40px}
+    .gal-card{
+      background:var(--surface2);border:2px solid var(--border);border-radius:10px;
+      overflow:hidden;display:flex;flex-direction:column;position:relative;
+      transition:border-color .2s;
+    }
+    .gal-card:hover{border-color:rgba(124,106,247,.4)}
+    .gal-card.gal-sel{border-color:var(--accent);box-shadow:0 0 0 2px rgba(124,106,247,.25)}
+    .gal-thumb-wrap{position:relative;cursor:pointer}
+    .gal-thumb{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+    .gal-chk{
+      position:absolute;top:6px;left:6px;width:22px;height:22px;
+      background:rgba(0,0,0,.75);border:2px solid rgba(255,255,255,.4);
+      border-radius:6px;display:none;align-items:center;justify-content:center;
+      font-size:13px;color:#fff;pointer-events:none;
+    }
+    .gal-card.gal-sel .gal-chk{background:var(--accent);border-color:var(--accent)}
+    .gal-card-body{padding:7px 8px 4px}
+    .gal-card-model{font-family:var(--mono);font-size:9px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .gal-card-date{font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:1px}
+    .gal-card-meta{font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:1px}
+    .gal-card-foot{padding:4px 7px 7px;display:flex;justify-content:flex-end}
+    .gal-del-btn{background:transparent;border:1px solid rgba(255,78,106,.3);color:var(--danger);border-radius:5px;padding:4px 8px;cursor:pointer;font-size:11px;transition:all .2s;font-family:var(--sans)}
+    .gal-del-btn:hover{background:rgba(255,78,106,.12)}
+
+    /* Select-mode states */
+    #galleryGrid.sel-mode .gal-chk{display:flex}
+    #galleryGrid.sel-mode .gal-del-btn{display:none}
+    #galleryGrid.sel-mode .gal-card{cursor:pointer}
+
+    /* ── HISTORY STRIP ── */
+    #historyStrip{
+      position:fixed;bottom:0;left:var(--sidebar-w);right:0;
+      background:var(--surface);border-top:1px solid var(--border);
+      padding:8px 14px;display:flex;gap:10px;align-items:center;overflow-x:auto;z-index:9;
+      transition:right .3s ease;
+    }
+    .history-thumb{width:58px;height:58px;border-radius:7px;object-fit:cover;cursor:pointer;border:2px solid var(--border);transition:all .2s;flex-shrink:0}
+    .history-thumb:hover{border-color:var(--accent);transform:scale(1.05)}
+    .history-thumb.active{border-color:var(--accent2)}
+    #historyStrip.empty{display:none}
+
+    /* ── ERROR TOAST ── */
+    #errorToast{display:none;position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;background:rgba(255,78,106,.12);border:1px solid rgba(255,78,106,.3);border-radius:10px;font-family:var(--mono);font-size:12px;color:var(--danger);max-width:360px;animation:slideUp .3s ease}
+    @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+
+    /* ── ZOOM OVERLAY ── */
+    #zoomOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;cursor:zoom-out;align-items:center;justify-content:center}
+    #zoomImg{max-width:95vw;max-height:95vh;border-radius:8px;object-fit:contain}
+
+    /* ── MOBILE NAV ── */
+    #mobileNav{display:none}
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:4px;height:4px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+    /* ══════════════════════════════════════
+       MOBILE STYLES  (≤ 768 px)
+       ══════════════════════════════════════ */
+    @media(max-width:768px){
+      :root{--header-h:50px;--mobile-nav-h:64px}
+
+      /* Hide desktop-only chrome */
+      .nav-tabs, .gal-toggle-btn{display:none !important}
+      #historyStrip{display:none !important}
+
+      /* Workspace is a stacking context for absolute panels */
+      #workspace{overflow:hidden}
+
+      /* All three panels fill the workspace absolutely */
+      #controls, #output, #galleryPanel{
+        position:absolute;inset:0;
+        display:none;flex-direction:column;overflow-y:auto;
+        /* Reset desktop-specific sizing */
+        width:100% !important;opacity:1 !important;pointer-events:auto !important;
+        border:none !important;transition:none !important;
+      }
+      /* Gallery panel: reset gal-hidden on mobile */
+      #galleryPanel.gal-hidden{width:100% !important;opacity:1 !important;pointer-events:auto !important}
+
+      /* Active panel is visible */
+      .mob-active{display:flex !important}
+
+      /* Controls padding accounts for mobile nav */
+      #controls{padding:14px 14px calc(var(--mobile-nav-h) + 12px)}
+      #output{padding:14px 14px calc(var(--mobile-nav-h) + 12px);justify-content:flex-start}
+      #galleryPanel{padding-bottom:0}
+
+      /* Mobile result image */
+      #resultImg{max-height:52vh}
+
+      /* ── MOBILE NAV BAR ── */
+      #mobileNav{
+        display:flex;height:var(--mobile-nav-h);flex-shrink:0;
+        background:var(--surface);border-top:1px solid var(--border);
+        padding-bottom:env(safe-area-inset-bottom,0);
+        position:relative;z-index:20;
+      }
+      .mob-tab{
+        flex:1;background:transparent;border:none;color:var(--muted);cursor:pointer;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        gap:3px;font-family:var(--sans);font-size:10px;font-weight:600;
+        transition:color .2s;padding:6px 4px;position:relative;
+        -webkit-tap-highlight-color:transparent;
+      }
+      .mob-tab-icon{font-size:22px;line-height:1;transition:transform .15s}
+      .mob-tab.active{color:var(--accent)}
+      .mob-tab.active .mob-tab-icon{transform:scale(1.15)}
+      .mob-tab.active::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:28px;height:2px;background:var(--accent);border-radius:0 0 4px 4px}
+
+      /* Centre "Generate" tab has pill style */
+      .mob-tab-mid .mob-tab-pill{
+        width:48px;height:48px;
+        background:linear-gradient(135deg,var(--accent),#5d4fe0);
+        border-radius:16px;display:flex;align-items:center;justify-content:center;
+        font-size:22px;box-shadow:0 4px 18px rgba(124,106,247,.45);transition:box-shadow .2s;
+      }
+      .mob-tab-mid.active .mob-tab-pill{box-shadow:0 4px 24px rgba(124,106,247,.7)}
+      .mob-tab-mid{color:var(--text)}
+      .mob-tab-mid.active{color:var(--text)}
+      .mob-tab-mid.active::after{display:none}
+
+      /* Gallery grid on mobile: 2 cols, bigger */
+      #galleryGrid{grid-template-columns:repeat(2,1fr);gap:10px;padding:12px}
+
+      /* Error toast above mobile nav */
+      #errorToast{bottom:calc(var(--mobile-nav-h) + 10px);right:12px;left:12px;max-width:100%}
+
+      /* Ctrl hints small */
+      .ctrl-textarea{min-height:72px}
+      .ctrl-textarea.neg{min-height:52px}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── TOP BAR ── -->
+<div id="topbar">
+  <div class="logo-icon">🖼️</div>
+  <div class="logo-text">Ollama<span>Gate</span></div>
+  <nav class="nav-tabs">
+    <a href="/" class="nav-tab">💬 Chat</a>
+    <a href="/imagegen" class="nav-tab active">🎨 Image Gen</a>
+  </nav>
+  <div class="topbar-right">
+    <button class="gal-toggle-btn" id="galDesktopBtn" onclick="toggleGalleryPanel()">🗂️ Gallery</button>
+    <div class="timer-sm" id="timerBadge">⏳ --:--</div>
+  </div>
+</div>
+
+<!-- ── WORKSPACE ── -->
+<div id="workspace">
+
+  <!-- LEFT / MOBILE SETTINGS TAB: Controls -->
+  <div id="controls" class="mob-active">
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">🤖 Model</div>
+      <select id="modelSelect" class="ctrl-select">
+        <option value="anime">UnfilteredAI / NSFW-GEN-ANIME</option>
+        <option value="sdxl">Stable Diffusion XL 1.0</option>
+        <option value="v2">UnfilteredAI / NSFW-gen-v2</option>
+      </select>
+      <div id="modelHint" style="font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1.5;padding:4px 2px"></div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">✍️ Prompt</div>
+      <textarea id="promptInput" class="ctrl-textarea" placeholder="Describe what you want to generate…" rows="4"></textarea>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">🚫 Negative Prompt</div>
+      <textarea id="negInput" class="ctrl-textarea neg" rows="3">blurry, low quality, bad anatomy, malformed, fused anatomy, missing hands, missing arms, chopped limbs, distorted body, wrong fingers, wrong eyes, unnatural pose, bad proportions, floating hands, disconnected limbs, warped clothing, unnatural facial expression, bad face, bad mouth/jaw, fused eyelashes, overlapping hair</textarea>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">📐 Resolution <span style="color:var(--muted);font-size:8px">(max 824×824)</span></div>
+      <div class="res-grid" id="resGrid">
+        <button class="res-btn selected" data-w="824" data-h="824">824 × 824<div class="res-aspect">Square</div></button>
+        <button class="res-btn" data-w="640" data-h="640">640 × 640<div class="res-aspect">Square (med)</div></button>
+        <button class="res-btn" data-w="824" data-h="464">824 × 464<div class="res-aspect">Landscape 16:9</div></button>
+        <button class="res-btn" data-w="768" data-h="512">768 × 512<div class="res-aspect">Landscape 3:2</div></button>
+        <button class="res-btn" data-w="464" data-h="824">464 × 824<div class="res-aspect">Portrait 9:16</div></button>
+        <button class="res-btn" data-w="512" data-h="768">512 × 768<div class="res-aspect">Portrait 2:3</div></button>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">⚙️ Advanced</div>
+      <div class="ctrl-row">
+        <div style="flex:1">
+          <input type="number" id="stepsInput" class="ctrl-input" value="30" min="10" max="60"/>
+          <div class="ctrl-input-label">Steps</div>
+        </div>
+        <div style="flex:1">
+          <input type="number" id="guidanceInput" class="ctrl-input" value="7.0" min="1" max="20" step="0.5"/>
+          <div class="ctrl-input-label">Guidance</div>
+        </div>
+        <div style="flex:1">
+          <input type="number" id="seedInput" class="ctrl-input" value="-1" min="-1" max="2147483647"/>
+          <div class="ctrl-input-label">Seed (-1=rand)</div>
+        </div>
+      </div>
+    </div>
+
+    <button id="genBtn" onclick="startGeneration()">
+      <span id="genBtnIcon">✨</span>
+      <span id="genBtnText">Generate</span>
+    </button>
+
+  </div>
+
+  <!-- CENTER / MOBILE GENERATE TAB: Output -->
+  <div id="output">
+
+    <div id="emptyState">
+      <div class="empty-icon">🎨</div>
+      <p>Choose a model, write a prompt,<br>and hit Generate.</p>
+    </div>
+
+    <div id="progressWrap">
+      <div class="progress-spinner"></div>
+      <div class="progress-model-badge" id="progressModelBadge">Loading model…</div>
+      <div class="progress-label" id="progressLabel">Starting up — first run loads the model into VRAM…</div>
+      <div id="stepBarWrap">
+        <div id="stepBarTrack"><div id="stepBarFill"></div></div>
+        <div id="stepBarLabel"></div>
+      </div>
+    </div>
+
+    <div id="resultCard">
+      <img id="resultImg" src="" alt="Generated image" onclick="zoomImage(this)"/>
+      <div class="result-meta" id="resultMeta"></div>
+      <div class="result-actions">
+        <button class="action-btn dl" onclick="downloadResult()">⬇️ Download</button>
+        <button class="action-btn" onclick="reusePrompt()">🔁 Reuse Prompt</button>
+        <button class="action-btn" onclick="newGeneration()">➕ New</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT / MOBILE GALLERY TAB: Saved Images -->
+  <div id="galleryPanel" class="gal-hidden">
+
+    <!-- Header -->
+    <div class="gal-hdr">
+      <span class="gal-hdr-title">🗂️ Saved Images</span>
+      <span class="gal-count-badge" id="galCount">0</span>
+      <div class="gal-hdr-btns">
+        <button class="gal-icon-btn" id="galSelBtn" onclick="toggleSelectMode()" title="Select images to delete">☑</button>
+        <button class="gal-icon-btn" onclick="loadGallery()" title="Refresh gallery">↻</button>
+      </div>
+    </div>
+
+    <!-- Bulk select action bar -->
+    <div id="galSelBar">
+      <span id="galSelCount">0 selected</span>
+      <button class="gal-btn-sm gal-btn-selall" onclick="selectAllToggle()">Select All</button>
+      <button class="gal-btn-sm gal-btn-delsel" id="galDelSelBtn" onclick="deleteSelected()" disabled>Delete (0)</button>
+      <button class="gal-btn-sm gal-btn-cancel" onclick="exitSelectMode()">✕ Cancel</button>
+    </div>
+
+    <!-- Image grid -->
+    <div id="galleryGrid">
+      <div class="gal-empty">
+        <div class="gal-empty-icon">🖼️</div>
+        <p style="font-size:13px;color:var(--muted)">Open the gallery<br>to see saved images.</p>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /workspace -->
+
+<!-- History strip (desktop only) -->
+<div id="historyStrip" class="empty"></div>
+
+<!-- ── MOBILE BOTTOM NAV ── -->
+<nav id="mobileNav">
+  <button class="mob-tab active" id="mobTabCtrl" onclick="switchTab('controls')">
+    <span class="mob-tab-icon">⚙️</span>
+    <span>Settings</span>
+  </button>
+  <button class="mob-tab mob-tab-mid" id="mobTabOut" onclick="switchTab('output')">
+    <span class="mob-tab-pill">🎨</span>
+    <span>Generate</span>
+  </button>
+  <button class="mob-tab" id="mobTabGal" onclick="switchTab('gallery')">
+    <span class="mob-tab-icon">🗂️</span>
+    <span>Gallery</span>
+  </button>
+</nav>
+
+<!-- Zoom overlay -->
+<div id="zoomOverlay" onclick="this.style.display='none'">
+  <img id="zoomImg" src="" alt=""/>
+</div>
+
+<!-- Error toast -->
+<div id="errorToast"></div>
+
+<script>
+// ── Global state ──────────────────────────────────────────────
+let currentW = 824, currentH = 824;
+let sseConn = null;
+let imgHistory = [];
+let lastPrompt = '', lastNeg = '';
+let galOpen = false;         // desktop panel open
+let galSelMode = false;      // bulk-select mode
+let galSelected = new Set(); // selected filenames
+
+const isMobile = () => window.innerWidth <= 768;
+
+// ── Model hints / labels ──────────────────────────────────────
+const MODEL_HINTS = {
+  anime: 'Anime-style NSFW-GEN model. Best for illustrated/anime aesthetics.',
+  sdxl:  'Stable Diffusion XL 1.0 — general purpose photorealistic & artistic images.',
+  v2:    'NSFW-gen-v2 — second generation model, broader style range.',
+};
+const MODEL_LABELS = { anime: 'NSFW-GEN-ANIME', sdxl: 'Stable Diffusion XL', v2: 'NSFW-gen-v2' };
+
+document.getElementById('modelSelect').addEventListener('change', function() {
+  document.getElementById('modelHint').textContent = MODEL_HINTS[this.value] || '';
+});
+document.getElementById('modelHint').textContent = MODEL_HINTS['anime'];
+
+// ── Resolution picker ─────────────────────────────────────────
+document.querySelectorAll('.res-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.res-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    currentW = parseInt(btn.dataset.w);
+    currentH = parseInt(btn.dataset.h);
+  });
+});
+
+// ── Mobile tab switching ──────────────────────────────────────
+const MOB_PANELS = { controls: 'controls', output: 'output', gallery: 'galleryPanel' };
+const MOB_TABS   = { controls: 'mobTabCtrl', output: 'mobTabOut', gallery: 'mobTabGal' };
+
+function switchTab(tab) {
+  Object.values(MOB_PANELS).forEach(id => document.getElementById(id).classList.remove('mob-active'));
+  Object.values(MOB_TABS).forEach(id   => document.getElementById(id).classList.remove('active'));
+  document.getElementById(MOB_PANELS[tab]).classList.add('mob-active');
+  document.getElementById(MOB_TABS[tab]).classList.add('active');
+  if (tab === 'gallery') loadGallery();
+}
+
+// ── Desktop gallery panel ─────────────────────────────────────
+function toggleGalleryPanel() {
+  galOpen = !galOpen;
+  const panel = document.getElementById('galleryPanel');
+  const btn   = document.getElementById('galDesktopBtn');
+  const strip = document.getElementById('historyStrip');
+  panel.classList.toggle('gal-hidden', !galOpen);
+  btn.classList.toggle('on', galOpen);
+  strip.style.right = galOpen ? 'var(--gallery-w)' : '0';
+  if (galOpen) loadGallery();
+}
+
+// ── Timer ─────────────────────────────────────────────────────
+function updateTimer() {
+  fetch('/api/status').then(r => r.json()).then(d => {
+    const s = d.expires_in || 0;
+    if (s <= 0) { document.getElementById('timerBadge').textContent = '⏰ Expired'; return; }
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    document.getElementById('timerBadge').textContent =
+      h > 0 ? `⏰ ${h}h ${m}m` : `⏰ ${m}m ${String(sec).padStart(2,'0')}s`;
+  }).catch(() => {});
+}
+updateTimer();
+setInterval(updateTimer, 5000);
+
+// ── Generation ────────────────────────────────────────────────
+function startGeneration() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) { showError('Please enter a prompt.'); return; }
+
+  lastPrompt = prompt;
+  lastNeg    = document.getElementById('negInput').value.trim();
+
+  const payload = {
+    model:           document.getElementById('modelSelect').value,
+    prompt,
+    negative_prompt: lastNeg,
+    width:           currentW,
+    height:          currentH,
+    steps:           parseInt(document.getElementById('stepsInput').value) || 30,
+    guidance_scale:  parseFloat(document.getElementById('guidanceInput').value) || 7.0,
+    seed:            parseInt(document.getElementById('seedInput').value),
+  };
+
+  // Auto-switch to output on mobile
+  if (isMobile()) switchTab('output');
+
+  setGenerating(true, payload.model);
+
+  fetch('/api/imagegen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { showError(data.error); setGenerating(false); return; }
+    connectSSE(data.job_id, payload);
+  })
+  .catch(err => { showError(String(err)); setGenerating(false); });
+}
+
+// ── SSE streaming ─────────────────────────────────────────────
+function connectSSE(jobId, payload) {
+  if (sseConn) { sseConn.close(); sseConn = null; }
+  sseConn = new EventSource(`/api/imagegen/stream/${jobId}`);
+  let imageReceived = false;
+
+  sseConn.onmessage = function(e) {
+    let data;
+    try { data = JSON.parse(e.data); } catch { return; }
+
+    if (data.error && !imageReceived) {
+      showError(data.error); setGenerating(false);
+      sseConn.close(); sseConn = null; return;
+    }
+    if (data.status === 'done' && data.image_b64 && !imageReceived) {
+      imageReceived = true;
+      setGenerating(false);
+      showResult(data, payload);
+      sseConn.close(); sseConn = null;
+      // Refresh gallery if it's currently visible
+      const galPanel = document.getElementById('galleryPanel');
+      const galVisible = galOpen || galPanel.classList.contains('mob-active');
+      if (galVisible) setTimeout(loadGallery, 600);
+      return;
+    }
+    if (data.status === 'error') {
+      showError(data.error || 'Generation failed.');
+      setGenerating(false); sseConn.close(); sseConn = null; return;
+    }
+    if (data.message) document.getElementById('progressLabel').textContent = data.message;
+    if (data.step > 0 && data.total_steps > 0) {
+      const pct = Math.round((data.step / data.total_steps) * 100);
+      document.getElementById('stepBarWrap').style.display = 'flex';
+      document.getElementById('stepBarFill').style.width   = pct + '%';
+      document.getElementById('stepBarLabel').textContent  = `Step ${data.step} / ${data.total_steps}  (${pct}%)`;
+    }
+  };
+
+  sseConn.onerror = function() {
+    if (!document.getElementById('genBtn').disabled) {
+      sseConn.close(); sseConn = null;
+    }
+  };
+}
+
+// ── UI state helpers ──────────────────────────────────────────
+function setGenerating(yes, modelKey) {
+  document.getElementById('genBtn').disabled = yes;
+  document.getElementById('genBtnIcon').textContent = yes ? '⏳' : '✨';
+  document.getElementById('genBtnText').textContent  = yes ? 'Generating…' : 'Generate';
+  document.getElementById('emptyState').style.display   = 'none';
+  document.getElementById('resultCard').style.display   = 'none';
+  document.getElementById('progressWrap').style.display = yes ? 'flex' : 'none';
+  document.getElementById('stepBarWrap').style.display  = 'none';
+  document.getElementById('stepBarFill').style.width    = '0%';
+  if (yes && modelKey) {
+    document.getElementById('progressModelBadge').textContent = MODEL_LABELS[modelKey] || modelKey;
+    document.getElementById('progressLabel').textContent = 'Queued — freeing Ollama VRAM, then loading image model…';
+  }
+}
+
+function showResult(data, payload) {
+  const src = `data:image/png;base64,${data.image_b64}`;
+  document.getElementById('resultImg').src = src;
+  document.getElementById('resultCard').style.display = 'flex';
+  document.getElementById('resultMeta').innerHTML = `
+    <span class="result-badge ok">✅ ${data.elapsed}s</span>
+    <span class="result-badge">${MODEL_LABELS[payload.model] || payload.model}</span>
+    <span class="result-badge">${payload.width}×${payload.height}</span>
+    <span class="result-badge">${payload.steps} steps</span>
+    <span class="result-badge">CFG ${payload.guidance_scale}</span>
+    <span class="result-badge">seed ${data.seed}</span>
+    ${data.filename ? '<span class="result-badge">💾 saved</span>' : ''}
+  `;
+  imgHistory.push({ src, meta: payload, seed: data.seed });
+  refreshHistory();
+}
+
+function refreshHistory() {
+  const strip = document.getElementById('historyStrip');
+  if (imgHistory.length === 0) { strip.classList.add('empty'); return; }
+  strip.classList.remove('empty');
+  strip.innerHTML = '<span style="font-family:var(--mono);font-size:10px;color:var(--muted);flex-shrink:0">History:</span>';
+  imgHistory.slice().reverse().forEach((item, revIdx) => {
+    const idx = imgHistory.length - 1 - revIdx;
+    const thumb = document.createElement('img');
+    thumb.className = 'history-thumb' + (idx === imgHistory.length-1 ? ' active' : '');
+    thumb.src = item.src;
+    thumb.title = item.meta.prompt;
+    thumb.onclick = () => loadHistoryItem(idx);
+    strip.appendChild(thumb);
+  });
+}
+
+function loadHistoryItem(idx) {
+  const item = imgHistory[idx];
+  const p = item.meta;
+  document.getElementById('resultImg').src = item.src;
+  document.getElementById('resultMeta').innerHTML = `
+    <span class="result-badge ok">📂 History</span>
+    <span class="result-badge">${MODEL_LABELS[p.model] || p.model}</span>
+    <span class="result-badge">${p.width}×${p.height}</span>
+    <span class="result-badge">${p.steps} steps</span>
+    <span class="result-badge">CFG ${p.guidance_scale}</span>
+    <span class="result-badge">seed ${item.seed}</span>
+  `;
+  document.getElementById('resultCard').style.display    = 'flex';
+  document.getElementById('emptyState').style.display    = 'none';
+  document.getElementById('progressWrap').style.display  = 'none';
+  document.querySelectorAll('.history-thumb').forEach((t, i) => {
+    t.classList.toggle('active', imgHistory.length-1-i === idx);
+  });
+}
+
+function downloadResult() {
+  const src = document.getElementById('resultImg').src;
+  if (!src || !src.startsWith('data:')) return;
+  const a = document.createElement('a');
+  a.href = src;
+  a.download = `ollama_gen_${Date.now()}.png`;
+  a.click();
+}
+
+function reusePrompt() {
+  document.getElementById('promptInput').value = lastPrompt;
+  document.getElementById('negInput').value    = lastNeg;
+  if (isMobile()) switchTab('controls');
+  else document.getElementById('promptInput').focus();
+}
+
+function newGeneration() {
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+}
+
+function zoomImage(img) {
+  document.getElementById('zoomImg').src = img.src;
+  document.getElementById('zoomOverlay').style.display = 'flex';
+}
+
+function showError(msg) {
+  const toast = document.getElementById('errorToast');
+  toast.textContent = '⚠️ ' + msg;
+  toast.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { toast.style.display = 'none'; }, 7000);
+}
+
+// ── Gallery: load & render ────────────────────────────────────
+function loadGallery() {
+  const grid = document.getElementById('galleryGrid');
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:var(--mono);font-size:12px;color:var(--muted)">Loading…</div>';
+  document.getElementById('galCount').textContent = '…';
+  exitSelectMode();
+
+  fetch('/api/imagegen/gallery')
+    .then(r => r.json())
+    .then(data => {
+      const imgs = data.images || [];
+      document.getElementById('galCount').textContent = imgs.length;
+
+      if (imgs.length === 0) {
+        grid.innerHTML = `
+          <div class="gal-empty">
+            <div class="gal-empty-icon">🖼️</div>
+            <p style="font-size:13px;color:var(--muted)">No saved images yet.<br>Generate something!</p>
+          </div>`;
+        return;
+      }
+
+      grid.innerHTML = '';
+      imgs.forEach(img => {
+        const parts   = img.filename.replace('.png','').split('_');
+        const dateStr = img.created
+          ? new Date(img.created * 1000).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
+          : (parts[0] ? new Date(parseInt(parts[0]) * 1000).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '');
+        const seed    = parts[1] || '?';
+        const model   = parts.slice(2).join('_') || '?';
+        const sizeStr = img.size ? `${Math.round(img.size / 1024)} KB` : '';
+
+        const card = document.createElement('div');
+        card.className = 'gal-card';
+        card.dataset.filename = img.filename;
+        card.innerHTML = `
+          <div class="gal-thumb-wrap" onclick="galCardClick(event,'${img.filename}',this.querySelector('img'))">
+            <div class="gal-chk">✓</div>
+            <img class="gal-thumb" src="${img.url}" loading="lazy" alt="${img.filename}"/>
+          </div>
+          <div class="gal-card-body">
+            <div class="gal-card-model" title="${model}">${model}</div>
+            <div class="gal-card-date">${dateStr}</div>
+            <div class="gal-card-meta">seed ${seed}${sizeStr ? ' · ' + sizeStr : ''}</div>
+          </div>
+          <div class="gal-card-foot">
+            <button class="gal-del-btn" onclick="deleteSingleImage('${img.filename}',this)">🗑 Delete</button>
+          </div>`;
+        grid.appendChild(card);
+      });
+    })
+    .catch(err => {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--danger);font-family:var(--mono);font-size:12px">Failed to load: ${err}</div>`;
+    });
+}
+
+function galCardClick(event, filename, imgEl) {
+  if (galSelMode) {
+    event.stopPropagation();
+    toggleCardSelect(filename);
+  } else {
+    zoomImage(imgEl);
+  }
+}
+
+// ── Gallery: select mode ──────────────────────────────────────
+function toggleSelectMode() {
+  galSelMode ? exitSelectMode() : enterSelectMode();
+}
+
+function enterSelectMode() {
+  galSelMode = true;
+  galSelected.clear();
+  document.getElementById('galleryGrid').classList.add('sel-mode');
+  document.getElementById('galSelBar').classList.add('visible');
+  document.getElementById('galSelBtn').classList.add('on');
+  updateSelUI();
+}
+
+function exitSelectMode() {
+  galSelMode = false;
+  galSelected.clear();
+  document.getElementById('galleryGrid').classList.remove('sel-mode');
+  document.getElementById('galSelBar').classList.remove('visible');
+  document.getElementById('galSelBtn').classList.remove('on');
+  document.querySelectorAll('.gal-card.gal-sel').forEach(c => c.classList.remove('gal-sel'));
+  updateSelUI();
+}
+
+function toggleCardSelect(filename) {
+  const card = document.querySelector(`.gal-card[data-filename="${CSS.escape(filename)}"]`);
+  if (!card) return;
+  if (galSelected.has(filename)) {
+    galSelected.delete(filename);
+    card.classList.remove('gal-sel');
+  } else {
+    galSelected.add(filename);
+    card.classList.add('gal-sel');
+  }
+  updateSelUI();
+}
+
+function selectAllToggle() {
+  const cards = document.querySelectorAll('.gal-card');
+  const allSel = galSelected.size === cards.length;
+  cards.forEach(card => {
+    const fn = card.dataset.filename;
+    if (allSel) {
+      galSelected.delete(fn);
+      card.classList.remove('gal-sel');
+    } else {
+      galSelected.add(fn);
+      card.classList.add('gal-sel');
+    }
+  });
+  updateSelUI();
+}
+
+function updateSelUI() {
+  const n     = galSelected.size;
+  const total = document.querySelectorAll('.gal-card').length;
+  document.getElementById('galSelCount').textContent = `${n} selected`;
+  const delBtn = document.getElementById('galDelSelBtn');
+  delBtn.textContent = `Delete (${n})`;
+  delBtn.disabled    = n === 0;
+  const allBtn = document.querySelector('.gal-btn-selall');
+  if (allBtn) allBtn.textContent = (n === total && total > 0) ? 'Deselect All' : 'Select All';
+}
+
+// ── Gallery: delete ───────────────────────────────────────────
+function deleteSelected() {
+  const n = galSelected.size;
+  if (n === 0) return;
+  if (!confirm(`Permanently delete ${n} image${n > 1 ? 's' : ''}?`)) return;
+
+  const filenames = Array.from(galSelected);
+  let failed = 0;
+  const promises = filenames.map(fn =>
+    fetch(`/api/imagegen/gallery/img/${encodeURIComponent(fn)}`, { method: 'DELETE' })
+      .then(r => r.json())
+      .then(d => { if (!d.ok) failed++; })
+      .catch(() => failed++)
+  );
+  Promise.all(promises).then(() => {
+    if (failed > 0) showError(`${failed} file(s) could not be deleted`);
+    loadGallery();
+  });
+}
+
+function deleteSingleImage(filename, btn) {
+  if (!confirm(`Delete ${filename}?`)) return;
+  fetch(`/api/imagegen/gallery/img/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        btn.closest('.gal-card').remove();
+        const remaining = document.querySelectorAll('.gal-card').length;
+        document.getElementById('galCount').textContent = remaining;
+        if (remaining === 0) loadGallery();
+      } else {
+        showError(d.error || 'Delete failed');
+      }
+    })
+    .catch(err => showError(String(err)));
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.getElementById('zoomOverlay').style.display = 'none';
+    if (galSelMode) exitSelectMode();
+  }
+});
+
+document.getElementById('promptInput').addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') startGeneration();
+});
+
+// ── Init ──────────────────────────────────────────────────────
+// On mobile: controls panel is active by default (class already set on #controls)
+// On desktop: nothing extra needed — panels are displayed via CSS normally.
+// Handle resize between mobile ↔ desktop.
+let _lastMobile = isMobile();
+window.addEventListener('resize', () => {
+  const nowMobile = isMobile();
+  if (nowMobile === _lastMobile) return;
+  _lastMobile = nowMobile;
+  if (!nowMobile) {
+    // Switched to desktop — clear mobile classes
+    ['controls','output','galleryPanel'].forEach(id => {
+      document.getElementById(id).classList.remove('mob-active');
+    });
+    // Restore gallery panel to its desktop state
+    if (!galOpen) document.getElementById('galleryPanel').classList.add('gal-hidden');
+  } else {
+    // Switched to mobile — activate controls tab
+    switchTab('controls');
+  }
+});
+</script>
+</body>
+</html>

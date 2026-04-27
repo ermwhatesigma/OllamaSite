@@ -1,0 +1,9 @@
+flask
+ollama
+requests
+gunicorn
+gevent
+httpx
+python-telegram-bot
+torch
+diffusers

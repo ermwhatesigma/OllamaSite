@@ -243,6 +243,11 @@
       .mob-tab.active .mob-tab-icon{transform:scale(1.15)}
       .mob-tab.active::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:28px;height:2px;background:var(--accent);border-radius:0 0 4px 4px}
 
+      .mob-tab.mob-tab-chat{
+        text-decoration:none;color:var(--muted);
+      }
+      .mob-tab.mob-tab-chat:hover{color:var(--accent)}
+
       /* Centre "Generate" tab has pill style */
       .mob-tab-mid .mob-tab-pill{
         width:48px;height:48px;
@@ -414,6 +419,10 @@
 
 <!-- ── MOBILE BOTTOM NAV ── -->
 <nav id="mobileNav">
+  <a href="/" class="mob-tab mob-tab-chat">
+    <span class="mob-tab-icon">💬</span>
+    <span>Chat</span>
+  </a>
   <button class="mob-tab active" id="mobTabCtrl" onclick="switchTab('controls')">
     <span class="mob-tab-icon">⚙️</span>
     <span>Settings</span>

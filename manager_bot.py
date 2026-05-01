@@ -370,7 +370,8 @@ def do_launch(tok: str, secs: int) -> tuple[str | None, bool]:
     Blocking — writes WSGI wrapper, starts gunicorn + tunnel, returns (url, health_ok).
     """
     WSGI_FILE.write_text(_WSGI_SRC)
-    env = {**os.environ, "GATE_TOKEN": tok, "GATE_SECS": str(secs)}
+    dur_str = f"{secs // 3600}h" if secs % 3600 == 0 else f"{secs // 60}m"
+    env = {**os.environ, "GATE_TOKEN": tok, "GATE_SECS": str(secs), "DURATION": dur_str}
 
     gun = subprocess.Popen(
         [
